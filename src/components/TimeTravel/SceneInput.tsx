@@ -9,13 +9,15 @@ interface SceneInputProps {
   onPromptChange: (prompt: string) => void;
   onGenerate: () => void;
   isGenerating: boolean;
+  disabled?: boolean;
 }
 
 export const SceneInput: React.FC<SceneInputProps> = ({
   prompt,
   onPromptChange,
   onGenerate,
-  isGenerating
+  isGenerating,
+  disabled = false
 }) => {
   const examplePrompts = [
     "A busy city street with tall buildings",
@@ -48,7 +50,7 @@ export const SceneInput: React.FC<SceneInputProps> = ({
             value={prompt}
             onChange={(e) => onPromptChange(e.target.value)}
             className="min-h-[100px] resize-none"
-            disabled={isGenerating}
+            disabled={isGenerating || disabled}
           />
         </div>
         
@@ -64,7 +66,7 @@ export const SceneInput: React.FC<SceneInputProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={() => onPromptChange(example)}
-                disabled={isGenerating}
+                disabled={isGenerating || disabled}
                 className="text-xs"
               >
                 {example}
@@ -75,7 +77,7 @@ export const SceneInput: React.FC<SceneInputProps> = ({
         
         <Button
           onClick={onGenerate}
-          disabled={isGenerating || !prompt.trim()}
+          disabled={isGenerating || !prompt.trim() || disabled}
           className="w-full"
           size="lg"
         >

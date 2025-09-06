@@ -21,12 +21,14 @@ interface EraSliderProps {
   currentEra: number;
   onEraChange: (eraIndex: number) => void;
   isGenerating?: boolean;
+  disabled?: boolean;
 }
 
 export const EraSlider: React.FC<EraSliderProps> = ({ 
   currentEra, 
   onEraChange, 
-  isGenerating = false 
+  isGenerating = false,
+  disabled = false
 }) => {
   return (
     <Card className="p-6 time-machine-glow">
@@ -45,7 +47,7 @@ export const EraSlider: React.FC<EraSliderProps> = ({
               max="5"
               value={currentEra}
               onChange={(e) => onEraChange(parseInt(e.target.value))}
-              disabled={isGenerating}
+              disabled={isGenerating || disabled}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
             />
             
@@ -64,7 +66,7 @@ export const EraSlider: React.FC<EraSliderProps> = ({
               <div key={era.year} className="flex flex-col items-center">
                 <button
                   onClick={() => onEraChange(index)}
-                  disabled={isGenerating}
+                  disabled={isGenerating || disabled}
                   className={`era-button ${currentEra === index ? 'active' : ''}`}
                 >
                   {era.label}

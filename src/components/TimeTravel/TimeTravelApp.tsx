@@ -1,37 +1,81 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SceneInput } from './SceneInput';
 import { EraSlider } from './EraSlider';
 import { ImageDisplay } from './ImageDisplay';
+import { ApiKeyInput } from './ApiKeyInput';
 import { useToast } from '@/hooks/use-toast';
+import { generateImage, editImage } from '@/services/geminiApi';
+import { ERAS } from './EraSlider';
 
 export const TimeTravelApp: React.FC = () => {
   const [prompt, setPrompt] = useState('');
   const [currentEra, setCurrentEra] = useState(4); // Start with modern era
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [modernBaseImage, setModernBaseImage] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const generateImage = async (prompt: string, eraIndex: number) => {
+  useEffect(() => {
+    // Check for stored API key
+    const storedKey = localStorage.getItem('gemini_api_key');
+    if (storedKey) {
+      setApiKey(storedKey);
+    }
+  }, []);
+
+  const generateScene = async (prompt: string, eraIndex: number) => {
+    if (!apiKey) {
+      toast({
+        title: "API Key Required",
+        description: "Please set your Gemini API key first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsGenerating(true);
     try {
-      // Simulate image generation for now
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const currentEraData = ERAS[eraIndex];
       
-      // In a real implementation, you would:
-      // 1. Generate initial modern scene
-      // 2. Use image editing to transform to selected era
-      // For now, we'll use a placeholder
-      const mockImageUrl = `https://picsum.photos/800/500?random=${Date.now()}`;
-      setCurrentImage(mockImageUrl);
+      if (eraIndex === 4) {
+        // Generate modern scene first
+        const modernPrompt = `${prompt}, modern street view, realistic lighting, detailed buildings, contemporary vehicles, people in modern clothing, high resolution, photorealistic`;
+        
+        const result = await generateImage({ prompt: modernPrompt }, apiKey);
+        
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        
+        setModernBaseImage(result.imageUrl);
+        setCurrentImage(result.imageUrl);
+      } else {
+        // Transform existing modern image to selected era
+        if (!modernBaseImage) {
+          throw new Error('Please generate a modern scene first');
+        }
+        
+        const eraPrompt = `Transform this image to ${currentEraData.label}: ${currentEraData.description}. Maintain the same composition and layout but change vehicles, clothing, architecture, and objects to match the ${currentEraData.year} era. High resolution, photorealistic.`;
+        
+        const result = await editImage(modernBaseImage, eraPrompt, apiKey);
+        
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        
+        setCurrentImage(result.imageUrl);
+      }
       
       toast({
-        title: "Image Generated!",
-        description: `Your scene has been created for the ${eraIndex === 4 ? 'modern' : 'historical'} era.`,
+        title: "Scene Generated!",
+        description: `Your scene has been created for ${currentEraData.label}.`,
       });
     } catch (error) {
+      console.error('Generation error:', error);
       toast({
-        title: "Generation Failed",
-        description: "There was an error generating your image. Please try again.",
+        title: "Generation Failed", 
+        description: error instanceof Error ? error.message : "Please check your API key and try again.",
         variant: "destructive",
       });
     } finally {
@@ -41,21 +85,25 @@ export const TimeTravelApp: React.FC = () => {
 
   const handleGenerate = () => {
     if (!prompt.trim()) return;
-    generateImage(prompt, currentEra);
+    generateScene(prompt, currentEra);
   };
 
   const handleEraChange = (newEra: number) => {
     setCurrentEra(newEra);
-    if (currentImage && prompt) {
-      // Regenerate for new era
-      generateImage(prompt, newEra);
+    if (currentImage && prompt && modernBaseImage) {
+      // Transform to new era
+      generateScene(prompt, newEra);
     }
   };
 
   const handleRegenerate = () => {
     if (prompt) {
-      generateImage(prompt, currentEra);
+      generateScene(prompt, currentEra);
     }
+  };
+
+  const handleApiKeySet = (key: string) => {
+    setApiKey(key);
   };
 
   return (
@@ -74,17 +122,24 @@ export const TimeTravelApp: React.FC = () => {
         <div className="grid lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
           {/* Left Column - Controls */}
           <div className="space-y-6">
+            <ApiKeyInput 
+              onApiKeySet={handleApiKeySet}
+              hasApiKey={!!apiKey}
+            />
+            
             <SceneInput
               prompt={prompt}
               onPromptChange={setPrompt}
               onGenerate={handleGenerate}
               isGenerating={isGenerating}
+              disabled={!apiKey}
             />
             
             <EraSlider
               currentEra={currentEra}
               onEraChange={handleEraChange}
               isGenerating={isGenerating}
+              disabled={!apiKey}
             />
           </div>
 
